@@ -1929,7 +1929,14 @@ class IntDiv(BinaryScalarOp):
 
         t = node.inputs[0].type.upcast(*[i.type for i in node.inputs[1:]])
         if t in imap(str, discrete_types):
-            check = 'if (%(y)s == 0) {PyErr_SetString(PyExc_ZeroDivisionError, "integer division by zero"); %(fail)s}' % locals()
+            check = dedent('''
+                if (%(y)s == 0) {
+                // do not set Python error message in gpuarray kernel for now
+                #ifndef LID_0
+                    PyErr_SetString(PyExc_ZeroDivisionError, "integer division by zero");
+                #endif
+                    %(fail)s
+                }''') % locals()
             x_div_y_pp = '(%(x)s / %(y)s)' % locals()
             x_div_y_mp = '((-%(x)s) / %(y)s)' % locals()
             x_mod_y_mp = 'THEANO_MACRO_MOD((-%(x)s), %(y)s)' % locals()
@@ -1978,7 +1985,7 @@ class IntDiv(BinaryScalarOp):
             """) % locals()
 
     def c_code_cache_version(self):
-        return (3,)
+        return (4,)
 
     def grad(self, inputs, g_output):
         return [inp.zeros_like(dtype=theano.config.floatX)
@@ -2010,7 +2017,7 @@ class Mod(BinaryScalarOp):
         return x % y
 
     def c_code_cache_version(self):
-        return (6,)
+        return (7,)
 
     def c_support_code(self):
         # We use a macro as python use % as a special string character,
@@ -2036,7 +2043,14 @@ class Mod(BinaryScalarOp):
             # keep them out of safety, and verify they are useless with an
             # assert.
             assert str(t) in imap(str, discrete_types)
-            check = 'if (%(y)s == 0) {PyErr_SetString(PyExc_ZeroDivisionError, "integer modulo by zero"); %(fail)s}' % locals()
+            check = dedent('''
+                if (%(y)s == 0) {
+                // do not set Python error message in gpuarray kernel for now
+                #ifndef LID_0
+                    PyErr_SetString(PyExc_ZeroDivisionError, "integer modulo by zero");
+                #endif
+                    %(fail)s
+                }''') % locals()
             x_mod_y = "THEANO_MACRO_MOD(%(x)s, %(y)s)" % locals()
             x_mod_ymm = "THEANO_MACRO_MOD(-%(x)s, -%(y)s)" % locals()
             x_mod_ypm = "THEANO_MACRO_MOD(%(x)s, -%(y)s)" % locals()
